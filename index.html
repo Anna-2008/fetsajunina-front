@@ -15,6 +15,14 @@
 html{scroll-behavior:smooth;}
 body{font-family:'Baloo 2',cursive;background:var(--midnight);min-height:100vh;overflow-x:hidden;}
 
+/* FOGO NO CURSOR */
+.fogo-particula{
+  position:fixed;pointer-events:none;z-index:9998;border-radius:50%;
+  mix-blend-mode:screen;will-change:transform,opacity;
+}
+
+
+
 #canvas-bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
 
 .bandeiras-wrap{position:fixed;top:0;left:0;right:0;height:56px;z-index:50;pointer-events:none;}
@@ -362,8 +370,8 @@ body{font-family:'Baloo 2',cursive;background:var(--midnight);min-height:100vh;o
     </div>
     <div class="card stagger">
       <div class="campo"><label>👤 Para quem?</label><input type="text" id="e-para" placeholder="Nome do destinatário"></div>
-      <div class="campo"><label>✍️ Sua mensagem</label><textarea id="e-msg" placeholder="Escreva algo lindo, engraçado ou misterioso... 💫"></textarea></div>
-      <div id="campo-de" class="campo"><label>🙋 Seu apelido (opcional)</label><input type="text" id="e-de" placeholder="Em branco = usa seu nome cadastrado"></div>
+
+      <div class="campo"><label>✍️ Sua mensagem</label><textarea id="e-msg" maxlength="250" placeholder="Escreva algo lindo, engraçado ou misterioso... 💫" oninput="atualizarContador()"></textarea><div id="e-msg-counter" style="text-align:right;font-size:.75rem;color:rgba(255,255,255,.4);margin-top:4px;">0 / 250</div></div>      <div id="campo-de" class="campo"><label>🙋 Seu apelido (opcional)</label><input type="text" id="e-de" placeholder="Em branco = usa seu nome cadastrado"></div>
       <button class="btn btn-rainbow" onclick="enviar()">💌 Adicionar ao Carrinho!</button>
       <button class="btn btn-ghost mt-8" onclick="voltarCats()">← Trocar categoria</button>
     </div>
@@ -415,7 +423,7 @@ body{font-family:'Baloo 2',cursive;background:var(--midnight);min-height:100vh;o
 <script>
 // ── CONFIG DA API ─────────────────────────
 // Altere para a URL do seu servidor backend
-const API_URL = 'http://localhost:3000';  // vazio = mesmo domínio (proxy). Ex: 'http://localhost:3000'
+const API_URL = 'https://backend-festa-junina-seven.vercel.app';  // vazio = mesmo domínio (proxy). Ex: 'http://localhost:3000'
 
 // ── CONFIG CATEGORIAS (fallback local) ────
 const CATS_FALLBACK = {
@@ -441,6 +449,21 @@ async function api(path, opts = {}) {
     throw new Error(err.mensagem || err.message || `Erro ${res.status}`);
   }
   return res.json();
+}
+
+document.getElementById('e-para').value='';
+document.getElementById('e-msg').value='';
+document.getElementById('e-de').value='';
+atualizarContador();
+
+function atualizarContador(){
+  const t=document.getElementById('e-msg');
+  const c=document.getElementById('e-msg-counter');
+  const len=t.value.length;
+  c.textContent=len+' / 250';
+  if(len>=250) c.style.color='#FF2D78';
+  else if(len>=200) c.style.color='#FFD600';
+  else c.style.color='rgba(255,255,255,.4)';
 }
 
 // ── CARREGA CATEGORIAS DO BACKEND ─────────
@@ -483,6 +506,8 @@ function atualizarPrecosCats() {
     }
   });
 }
+
+
 
 // ── CARREGA PEDIDOS/RECADOS DO BACKEND ────
 async function carregarRecados() {
@@ -675,6 +700,12 @@ async function enviar(){
     return;
   }
 
+    if(msg.length > 250){
+    toast('⚠️ A mensagem deve ter no máximo 250 caracteres!');
+    return;
+  }
+
+
   const cfg=CATS[catAtual];
 
   const de = catAtual==='anonimo'
@@ -829,8 +860,50 @@ function renderPerfil(){
 }
 
 // ── INIT ──────────────────────────────────
-initCanvas(); draw(); bandeiras(); badge();
+initCanvas(); draw(); badge();
 addEventListener('resize',resize);
+(function(){
+  let mouseX=0, mouseY=0, lastX=0, lastY=0, ativo=true;
+  const cores=[
+    '#FF4500','#FF6B00','#FF8C00','#FFD600','#FFEB3B','#FFF176','#FF2D00'
+  ];
+  document.addEventListener('mousemove',e=>{ mouseX=e.clientX; mouseY=e.clientY; });
+  document.addEventListener('focusin',e=>{ if(e.target.matches('input,textarea,select')) ativo=false; });
+  document.addEventListener('focusout',()=>{ ativo=true; });
+
+  function criarFaísca(){
+    if(!ativo) return;
+    const dx=mouseX-lastX, dy=mouseY-lastY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<2) return;
+    lastX=mouseX; lastY=mouseY;
+    const qtd=Math.min(Math.floor(dist/4)+1, 5);
+    for(let i=0;i<qtd;i++){
+      const p=document.createElement('div');
+      p.className='fogo-particula';
+      const cor=cores[Math.floor(Math.random()*cores.length)];
+      const size=Math.random()*10+4;
+      const dur=Math.random()*600+400;
+      const spreadX=(Math.random()-0.5)*30;
+      const riseY=-(Math.random()*60+30);
+      const spreadX2=(Math.random()-0.5)*50;
+      const riseY2=-(Math.random()*100+50);
+      const ox=mouseX+(Math.random()-0.5)*12;
+      const oy=mouseY+(Math.random()-0.5)*12;
+      p.style.cssText=`left:${ox}px;top:${oy}px;width:${size}px;height:${size}px;background:radial-gradient(circle,${cor},transparent 70%);box-shadow:0 0 ${size*2}px ${size}px ${cor}66;`;
+      document.body.appendChild(p);
+      p.animate([
+        {opacity:1, transform:'translate(0,0) scale(1)'},
+        {opacity:0.9, transform:`translate(${spreadX}px,${riseY}px) scale(0.7)`, offset:0.4},
+        {opacity:0, transform:`translate(${spreadX2}px,${riseY2}px) scale(0)`}
+      ],{duration:dur, easing:'ease-out', fill:'forwards'});
+      setTimeout(()=>p.remove(), dur+50);
+    }
+  }
+
+  function loop(){ criarFaísca(); requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+})();
 </script>
 </body>
 </html>
